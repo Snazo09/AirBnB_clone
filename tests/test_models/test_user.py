@@ -15,7 +15,7 @@ class test_User(test_basemodel):
         self.value = User
 
     def test_first_name(self):
-        """ testing user first anme attr"""
+        """ testing user first name attr"""
         new = self.value()
         self.assertEqual(type(new.first_name), str if
                          os.getenv('HBNB_TYPE_STORAGE') != 'db' else
