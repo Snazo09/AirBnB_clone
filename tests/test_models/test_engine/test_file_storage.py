@@ -142,3 +142,30 @@ class TestFileStorageReloadMethod(unittest.TestCase):
             for obj in self.objects.values():
                 storage.new(obj)
             storage.save()
+
+    def test_reload_from_unavailable_file(self):
+        """Test that reloading from a none existing file doesn't cause
+        any errors"""
+        os.remove('file.json')
+        storage.reload()
+
+    def test_reload_from_empty_dictionary(self):
+        """Test that reloading from file containing empty dictionary
+        doesn't cause any errors"""
+        with open('file.json', 'w') as f:
+            f.write("{}")
+        storage.reload()
+        self.assertEqual(storage.all(), {})
+
+    def test_reload_from_none_empty_dictionary(self):
+        """Test that reloading works on a file containing valid dictionary"""
+        storage.reload()
+
+    def test_passing_argument_to_reload(self):
+        """Test that an error occurs if reload receives argument"""
+        with self.assertRaises(TypeError):
+            storage.reload(1)
+
+
+if __name__ == '__main__':
+    unittest.main()
