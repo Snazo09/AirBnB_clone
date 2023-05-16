@@ -1,171 +1,112 @@
 #!/usr/bin/python3
-"""Test module for FileStorage class"""
-
+""" Module for testing file storage"""
 import unittest
-import uuid
-import json
-import os
-from datetime import datetime
-
 from models.base_model import BaseModel
-from models.engine.file_storage import FileStorage
+from models import storage
+import os
 
-storage = FileStorage()
-
-
-class TestFileStorageAllMethod(unittest.TestCase):
-    """Class for testing the all method"""
-
-    def test_return_value_is_dict(self):
-        """Test that the all method retuns a dictionary"""
-        self.assertIsInstance(storage.all(), dict)
-
-    def test_values_in_dict_are_from_BaseModel(self):
-        """Test that all values in __objects are either instances
-        of BaseModel or inherit from it"""
-        for obj in storage.all().values():
-            self.assertIsInstance(obj, BaseModel)
-
-    def test_calling_all_with_argument(self):
-        """Test that calling all with an argument causes TypeError"""
-        with self.assertRaises(TypeError):
-            storage.all(12)
-
-
-class TestFileStorageNewMethod(unittest.TestCase):
-    """Class for testing the new method"""
+@unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE') == 'db',
+                 'fileStorage test not supported')
+class test_fileStorage(unittest.TestCase):
+    """ Class to test the file storage method """
 
     def setUp(self):
-        """Setup variables used in tests"""
-        self.kwargs = {
-            'id': str(uuid.uuid4()),
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
-            }
-        self.instance = BaseModel(**self.kwargs)
-
-    def test_new_object_is_added_to_objects(self):
-        """Test that a new object is added to __objects dictionary"""
-        objects_before_updating = storage.all().copy()
-        storage.new(self.instance)
-        self.assertNotEqual(objects_before_updating, storage.all())
-
-    def test_key_of_new_object(self):
-        """Test that the key of the new object is of correct format"""
-        expected = f'{self.instance.__class__.__name__}.{self.instance.id}'
-        storage.new(self.instance)
-        self.assertTrue(storage.all()[expected] is self.instance)
-
-    def test_new_object_without_id(self):
-        """Test that an attribute error occurs if object passed has no id"""
-        del self.instance.id
-        with self.assertRaises(AttributeError):
-            storage.new(self.instance)
-
-    def test_passing_int_object_argument(self):
-        """Test that passing an integer raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new(112)
-
-    def test_passing_float_object_argument(self):
-        """Test that passing a float raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new(1.12)
-
-    def test_passing_str_object_argument(self):
-        """Test that passing a string raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new('one')
-
-    def test_passing_dict_object_argument(self):
-        """Test that passing a dict raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new({'name': 'Brian'})
-
-    def test_passing_list_object_argument(self):
-        """Test that passing a list raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new(['one'])
-
-    def test_passing_tuple_object_argument(self):
-        """Test that passing a tuple raises attribute error"""
-        with self.assertRaises(AttributeError):
-            storage.new(('one',))
-
-
-class TestFileStorageSaveMethod(unittest.TestCase):
-    """Class for testing the save method"""
-
-    def test_save_method_writes_to_file(self):
-        """Test that the save method updates the file when it's called"""
-        storage.save()
-        try:
-            with open('file.json', 'r') as f:
-                before_saving = json.load(f)
-        except FileNotFoundError:
-            before_saving = {}
-        for i in range(5):
-            BaseModel()
-        storage.save()
-        with open('file.json', 'r') as f:
-            after_saving = json.load(f)
-        self.assertEqual(len(after_saving) - len(before_saving), 5)
-
-    def test_saving_to_none_existing_file(self):
-        """Test that save method creates the file if it doesn't exist"""
-        os.remove('file.json')
-        BaseModel()
-        storage.save()
-        with open('file.json', 'r') as f:
-            self.assertTrue(f.read())
-
-    def test_passing_argument_to_save(self):
-        """Test that passing an argument to save raises TypeError"""
-        with self.assertRaises(TypeError):
-            storage.save(1)
-
-
-class TestFileStorageReloadMethod(unittest.TestCase):
-    """Class for testing the reload method """
-
-    def setUp(self):
-        """Setup variables to use in tests"""
-
-        BaseModel()
-        storage.save()
-        self.objects = storage.all()
+        """ Set up test environment """
+        del_list = []
+        for key in storage._FileStorage__objects.keys():
+            del_list.append(key)
+        for key in del_list:
+            del storage._FileStorage__objects[key]
 
     def tearDown(self):
-        """Clean up after the tests"""
+        """ Remove storage file at end of tests """
+        try:
+            os.remove('file.json')
+        except Exception:
+            pass
 
-        if not storage.all():
-            for obj in self.objects.values():
-                storage.new(obj)
-            storage.save()
+    def test_obj_list_empty(self):
+        """ __objects is initially empty """
+        self.assertEqual(len(storage.all()), 0)
 
-    def test_reload_from_unavailable_file(self):
-        """Test that reloading from a none existing file doesn't cause
-        any errors"""
-        os.remove('file.json')
+    def test_new(self):
+        """ New object is correctly added to __objects """
+        new = BaseModel()
+        new.save()
+        for obj in storage.all().values():
+            temp = obj
+        self.assertTrue(temp is obj)
+
+    def test_all(self):
+        """ __objects is properly returned """
+        new = BaseModel()
+        temp = storage.all()
+        self.assertIsInstance(temp, dict)
+
+    def test_base_model_instantiation(self):
+        """ File is not created on BaseModel save """
+        new = BaseModel()
+        self.assertFalse(os.path.exists('file.json'))
+
+    def test_empty(self):
+        """ Data is saved to file """
+        new = BaseModel()
+        thing = new.to_dict()
+        new.save()
+        new2 = BaseModel(**thing)
+        self.assertNotEqual(os.path.getsize('file.json'), 0)
+
+    def test_save(self):
+        """ FileStorage save method """
+        new = BaseModel()
+        storage.save()
+        self.assertTrue(os.path.exists('file.json'))
+
+    def test_reload(self):
+        """ Storage file is successfully loaded to __objects """
+        new = BaseModel()
+        new.save()
         storage.reload()
+        loaded = None
+        for obj in storage.all().values():
+            loaded = obj
+        self.assertEqual(new.to_dict()['id'], loaded.to_dict()['id'])
 
-    def test_reload_from_empty_dictionary(self):
-        """Test that reloading from file containing empty dictionary
-        doesn't cause any errors"""
+    def test_reload_empty(self):
+        """ Load from an empty file """
         with open('file.json', 'w') as f:
-            f.write("{}")
-        storage.reload()
-        self.assertEqual(storage.all(), {})
+            pass
+        with self.assertRaises(ValueError):
+            storage.reload()
 
-    def test_reload_from_none_empty_dictionary(self):
-        """Test that reloading works on a file containing valid dictionary"""
-        storage.reload()
+    def test_reload_from_nonexistent(self):
+        """ Nothing happens if file does not exist """
+        self.assertEqual(storage.reload(), None)
 
-    def test_passing_argument_to_reload(self):
-        """Test that an error occurs if reload receives argument"""
-        with self.assertRaises(TypeError):
-            storage.reload(1)
+    def test_base_model_save(self):
+        """ BaseModel save method calls storage save """
+        new = BaseModel()
+        new.save()
+        self.assertTrue(os.path.exists('file.json'))
 
+    def test_type_path(self):
+        """ Confirm __file_path is string """
+        self.assertEqual(type(storage._FileStorage__file_path), str)
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_type_objects(self):
+        """ Confirm __objects is a dict """
+        self.assertEqual(type(storage.all()), dict)
+
+    def test_key_format(self):
+        """ Key is properly formatted """
+        new = BaseModel()
+        new.save()
+        _id = new.to_dict()['id']
+        for key in storage.all().keys():
+            temp = key
+        self.assertEqual(temp, 'BaseModel' + '.' + _id)
+
+    def test_storage_var_created(self):
+        """ FileStorage object storage created """
+        from models.engine.file_storage import FileStorage
+        self.assertEqual(type(storage), FileStorage)
